@@ -1,0 +1,29 @@
+environment: development
+
+market:
+  primary_instruments:
+    - XAUUSD
+    - XAGUSD
+  watchlist: []
+  default_timeframes:
+    - M15
+    - H1
+    - H4
+
+llm:
+  local:
+    enabled: true
+    provider: ollama
+    base_url: http://127.0.0.1:11434
+  cloud:
+    enabled: false
+    primary_provider: null
+    fallback_providers: []
+
+signal:
+  allowed_directions:
+    - BUY
+    - SELL
+    - NO_SIGNAL
+  minimum_rr: 2.0
+  execution_enabled: false
