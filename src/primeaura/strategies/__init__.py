@@ -1,0 +1,1 @@
+"""Versioned, testable strategy framework."""
