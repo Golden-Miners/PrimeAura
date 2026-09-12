@@ -1,0 +1,19 @@
+profiles:
+  laptop:
+    description: "Low-resource development profile for 8 GB RAM Celeron laptop."
+    max_parallel_workers: 1
+    llm_concurrency: 1
+    prefer_cloud_llm: true
+    local_llm_enabled: true
+    max_market_symbols_per_cycle: 10
+    max_agent_graph_concurrency: 1
+  desktop:
+    description: "Daily-use profile for the higher-resource desktop."
+    max_parallel_workers: 2
+    llm_concurrency: 1
+    prefer_cloud_llm: false
+    local_llm_enabled: true
+    max_market_symbols_per_cycle: 30
+    max_agent_graph_concurrency: 2
+
+default_profile: laptop
