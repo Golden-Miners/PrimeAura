@@ -26,3 +26,5 @@ def chronological_split(bars: list[OHLCVBar], train_ratio: Decimal=Decimal("0.7"
     if not (Decimal("0.5")<=train_ratio<Decimal("1")): raise ValueError("train_ratio must be between 0.5 and 1")
     cut=int(len(bars)*float(train_ratio))
     return bars[:cut],bars[cut:]
+
+# Phase 6 note: execution costs and chronological splitting are intentionally explicit.
