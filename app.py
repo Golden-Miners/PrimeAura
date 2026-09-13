@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from datetime import date, timedelta
 
 import streamlit as st
 
@@ -119,7 +120,6 @@ st.header("Historical Backtest")
 st.caption("Read-only historical research using MT5 closed candles. No orders are placed.")
 
 bt_symbol = st.selectbox("Backtest instrument", ["XAUUSD", "XAGUSD"], key="bt_symbol")
-from datetime import date, timedelta
 bt_default_end = date.today()
 bt_default_start = bt_default_end - timedelta(days=30)
 bt_start = st.date_input("Start date", value=bt_default_start, key="bt_start")
@@ -153,6 +153,17 @@ if st.button("Run historical backtest", type="primary"):
             m3.metric("Net P&L", str(metrics.net_pnl))
             m4.metric("Profit factor", str(metrics.profit_factor))
             m5.metric("Max drawdown", str(metrics.max_drawdown))
+
+            from src.primeaura.backtest.report import build_report
+            report = build_report([result for _, result in trades])
+            if report.equity_curve:
+                st.subheader("Equity Curve")
+                st.line_chart({
+                    "Cumulative P&L": [float(point.cumulative_pnl) for point in report.equity_curve]
+                })
+                st.line_chart({
+                    "Drawdown": [float(point.drawdown) for point in report.equity_curve]
+                })
 
             if not trades:
                 st.warning("No completed signals occurred in this period.")
