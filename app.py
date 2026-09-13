@@ -86,7 +86,8 @@ else:
                 if d.get("entry") is not None:
                     st.write(
                         f"Entry: {d['entry']} | SL: {d.get('stop_loss', '—')} | "
-                        f"TP1: {d.get('tp1', '—')} | RR: {d.get('rr_tp1', '—')}"
+                        f"TP1: {d.get('tp1', '—')} | RR1: {d.get('rr_tp1', '—')} | "
+                        f"TP2: {d.get('tp2', '—')} | RR2: {d.get('rr_tp2', '—')}"
                     )
 
 if filtered:
@@ -96,12 +97,15 @@ if filtered:
             a.metric("Instrument", r.get("instrument", "—"))
             b.metric("Direction", r.get("direction", "—"))
             c.metric("Entry", r.get("entry", "—"))
-            d.metric("RR", r.get("rr", "—"))
+            d.metric("RR1", r.get("rr", "—"))
             st.write(
                 f"**Strategy:** {r.get('strategy_id', '—')} v{r.get('strategy_version', '—')} "
                 f"| **Confidence:** {r.get('confidence', '—')}"
             )
-            st.write(f"**SL:** {r.get('stop_loss', '—')} | **TP:** {r.get('take_profit', '—')}")
+            st.write(
+                f"**SL:** {r.get('stop_loss', '—')} | **TP1:** {r.get('take_profit', '—')} | "
+                f"**TP2:** {r.get('take_profit_2', '—')} | **RR2:** {r.get('rr_2', '—')}"
+            )
             st.write(f"**Thesis:** {r.get('thesis', '—')}")
             if r.get("confluences"):
                 st.write("**Confluences:** " + ", ".join(r["confluences"]))
