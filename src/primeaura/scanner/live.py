@@ -1,22 +1,26 @@
 from ..data.market_service import MarketDataService
 from ..signals.report import SignalReport
 from ..signals.store import SignalStore
-from ..scanner.pipeline import generate_from_bars
+from .diagnostics import diagnose_from_bars
+from .pipeline import generate_from_bars
 
 class LiveScanner:
     """Read-only live scanner. MT5 is initialized only when a scan is requested."""
-    def __init__(self, market:MarketDataService|None=None, store:SignalStore|None=None):
-        self.market=market or MarketDataService()
-        self.store=store or SignalStore()
+    def __init__(self, market: MarketDataService | None = None, store: SignalStore | None = None):
+        self.market = market or MarketDataService()
+        self.store = store or SignalStore()
+        self.last_diagnostics = {}
 
-    def scan(self, instrument:str, count:int=500)->tuple[SignalReport,...]:
+    def scan(self, instrument: str, count: int = 500) -> tuple[SignalReport, ...]:
         self.market.connect()
         try:
-            bars=self.market.fetch_multi_timeframe(instrument,count)
-            signals=generate_from_bars(instrument,bars)
-            reports=[]
+            bars = self.market.fetch_multi_timeframe(instrument, count)
+            diagnostics = diagnose_from_bars(bars)
+            self.last_diagnostics[instrument] = diagnostics
+            signals = generate_from_bars(instrument, bars)
+            reports = []
             for s in signals:
-                report=SignalReport(
+                report = SignalReport(
                     signal_id=f"{instrument}-{s.strategy_id}-{s.strategy_version}-{s.entry}",
                     instrument=s.instrument,
                     direction=s.direction,
