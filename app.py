@@ -119,8 +119,11 @@ st.header("Historical Backtest")
 st.caption("Read-only historical research using MT5 closed candles. No orders are placed.")
 
 bt_symbol = st.selectbox("Backtest instrument", ["XAUUSD", "XAGUSD"], key="bt_symbol")
-bt_start = st.date_input("Start date", key="bt_start")
-bt_end = st.date_input("End date", key="bt_end")
+from datetime import date, timedelta
+bt_default_end = date.today()
+bt_default_start = bt_default_end - timedelta(days=30)
+bt_start = st.date_input("Start date", value=bt_default_start, key="bt_start")
+bt_end = st.date_input("End date", value=bt_default_end, key="bt_end")
 
 if st.button("Run historical backtest", type="primary"):
     if bt_start >= bt_end:
@@ -133,12 +136,13 @@ if st.button("Run historical backtest", type="primary"):
 
             start = datetime.combine(bt_start, time.min, tzinfo=timezone.utc)
             end = datetime.combine(bt_end, time.max, tzinfo=timezone.utc)
+            data_start = start - timedelta(days=7)
 
             service = MarketDataService()
             service.connect()
             try:
                 with st.spinner("Loading historical MT5 data and replaying the strategy..."):
-                    historical = service.fetch_multi_timeframe_range(bt_symbol, start, end)
+                    historical = service.fetch_multi_timeframe_range(bt_symbol, data_start, end)
                     trades, metrics = run_historical(bt_symbol, historical)
             finally:
                 service.close()
