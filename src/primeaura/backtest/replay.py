@@ -1,8 +1,7 @@
-from decimal import Decimal
 from ..data.models import OHLCVBar
 from ..signals.models import Signal
+from .engine import ExecutionCosts, apply_costs
 from .models import TradeResult
-from .engine import ExecutionCosts
 
 def resolve_signal_on_bars(
     signal: Signal,
@@ -18,34 +17,35 @@ def resolve_signal_on_bars(
     if risk <= 0:
         return None
 
-    entry = signal.entry
+    entry = apply_costs(signal.entry, "SELL" if signal.direction == "BUY" else "BUY", costs)
     for index, bar in enumerate(future_bars, start=1):
         if signal.direction == "BUY":
             stop_hit = bar.low <= signal.stop_loss
             target_hit = bar.high >= signal.tp1
             if stop_hit:
-                exit_price = signal.stop_loss
+                raw_exit = signal.stop_loss
             elif target_hit:
-                exit_price = signal.tp1
+                raw_exit = signal.tp1
             else:
                 continue
         elif signal.direction == "SELL":
             stop_hit = bar.high >= signal.stop_loss
             target_hit = bar.low <= signal.tp1
             if stop_hit:
-                exit_price = signal.stop_loss
+                raw_exit = signal.stop_loss
             elif target_hit:
-                exit_price = signal.tp1
+                raw_exit = signal.tp1
             else:
                 continue
         else:
             raise ValueError("signal direction must be BUY or SELL")
 
-        if signal.direction == "BUY":
-            pnl = exit_price - entry
-        else:
-            pnl = entry - exit_price
-
+        exit_price = apply_costs(raw_exit, signal.direction, costs)
+        pnl = (
+            exit_price - entry
+            if signal.direction == "BUY"
+            else entry - exit_price
+        ) - costs.fee
         return TradeResult(
             entry=entry,
             exit=exit_price,
