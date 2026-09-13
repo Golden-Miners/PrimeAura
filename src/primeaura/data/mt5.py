@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from pathlib import Path
 import os
 
 from .models import MarketSnapshot, OHLCVBar
@@ -13,9 +12,9 @@ TIMEFRAME_MAP = {
 class MT5DataSource:
     """Read-only MT5 market-data adapter.
 
-    initialize() may start the installed MT5 terminal when the Python
-    MetaTrader5 package can locate it. MT5 login/trading credentials are
-    intentionally not managed here.
+    The adapter initializes MT5 only when a scan requests market data.
+    When no explicit terminal path is configured, the MetaTrader5 package
+    asks the local MT5 installation to initialize itself.
     """
 
     def __init__(self, terminal_path: str | None = None):
@@ -29,8 +28,7 @@ class MT5DataSource:
 
         kwargs = {"path": self.terminal_path} if self.terminal_path else {}
         if not mt5.initialize(**kwargs):
-            code = mt5.last_error()
-            raise RuntimeError(f"MT5 initialization failed: {code}")
+            raise RuntimeError(f"MT5 initialization failed: {mt5.last_error()}")
 
     def shutdown(self) -> None:
         import MetaTrader5 as mt5
@@ -46,9 +44,14 @@ class MT5DataSource:
         if not mt5.symbol_select(instrument, True):
             raise RuntimeError(f"MT5 symbol is unavailable: {instrument}")
 
-        rates = mt5.copy_rates_from_pos(instrument, getattr(mt5, TIMEFRAME_MAP[timeframe]), 0, count)
+        # Start at position 1 so the currently-forming candle is excluded.
+        rates = mt5.copy_rates_from_pos(
+            instrument, getattr(mt5, TIMEFRAME_MAP[timeframe]), 1, count
+        )
         if rates is None:
-            raise RuntimeError(f"MT5 returned no rates for {instrument} {timeframe}: {mt5.last_error()}")
+            raise RuntimeError(
+                f"MT5 returned no rates for {instrument} {timeframe}: {mt5.last_error()}"
+            )
 
         bars = tuple(
             OHLCVBar(
