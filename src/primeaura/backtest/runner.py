@@ -21,7 +21,7 @@ def run_historical(
     bars_by_tf: dict[str, list[OHLCVBar]],
     warmup: int = 250,
     max_signals: int | None = None,
-) -> tuple[tuple[Signal, TradeResult], BacktestMetrics]:
+) -> tuple[tuple[tuple[Signal, TradeResult], ...], BacktestMetrics]:
     """Run the locked signal engine chronologically without future-data leakage.
 
     The decision is made only from candles that were fully closed at the M5
