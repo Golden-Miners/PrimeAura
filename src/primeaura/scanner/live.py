@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from ..data.market_service import MarketDataService
 from ..signals.report import SignalReport
 from ..signals.store import SignalStore
@@ -40,7 +42,9 @@ class LiveScanner:
                     thesis="; ".join(s.reasoning),
                     confluences=s.reasoning,
                     risk_factors=s.risk_factors,
-                    timestamp=__import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                    take_profit_2=s.tp2,
+                    rr_2=s.rr_tp2,
                 )
                 self.store.append(report)
                 reports.append(report)
