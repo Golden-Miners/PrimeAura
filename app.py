@@ -8,12 +8,18 @@ st.title("PrimeAura")
 st.caption("Read-only trading signal intelligence — no order execution")
 
 root = Path("data/signals/signal_history.jsonl")
+diagnostic_root = Path("data/signals/scan_diagnostics.json")
 
 def load_rows():
     if not root.exists():
         return []
     with root.open(encoding="utf-8") as f:
         return [json.loads(x) for x in f if x.strip()][::-1]
+
+def load_diagnostics():
+    if not diagnostic_root.exists():
+        return {}
+    return json.loads(diagnostic_root.read_text(encoding="utf-8"))
 
 st.sidebar.header("Market Scanner")
 instrument_text = st.sidebar.text_input("Symbols", "XAUUSD, XAGUSD")
@@ -36,6 +42,7 @@ if st.sidebar.button("Scan MT5 now", type="primary"):
         st.error(f"MT5 scan failed: {exc}")
 
 rows = load_rows()
+diagnostics = load_diagnostics()
 
 st.sidebar.header("Filters")
 instruments = sorted({r.get("instrument", "") for r in rows})
@@ -56,8 +63,22 @@ c3.metric("Strategies", len({r.get("strategy_id") for r in filtered}))
 
 st.subheader("Latest Signals")
 if not filtered:
-    st.info("No signals recorded yet. Use 'Scan MT5 now' after installing the MT5 Python package.")
-else:
+    st.info("No signals recorded yet. A zero-signal scan is valid when the confluence gate is not satisfied.")
+
+for symbol in sorted(diagnostics):
+    if instrument != "All" and symbol != instrument:
+        continue
+    with st.expander(f"{symbol} — Why no signal?"):
+        for d in diagnostics[symbol]:
+            st.markdown(f"**{d['direction']}**")
+            passed = d.get("passed", [])
+            missing = d.get("missing", [])
+            st.write("Passed: " + (", ".join(passed) if passed else "None"))
+            st.write("Missing: " + (", ".join(missing) if missing else "None"))
+            if not missing:
+                st.success("All confluence requirements passed; signal-generation/RR gates decide the final result.")
+
+if filtered:
     for r in filtered:
         with st.container(border=True):
             a, b, c, d = st.columns(4)
