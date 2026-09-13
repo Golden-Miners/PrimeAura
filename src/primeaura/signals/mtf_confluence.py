@@ -13,11 +13,12 @@ def evaluate_locked_confluence(
     context: MultiTimeframeContext,
     direction: str,
     liquidity: list[LiquidityPool],
+    bos: list[StructureBreak],
     sweeps: list[LiquiditySweep],
     order_blocks: list[ActiveZone],
     fvgs: list[ActiveZone],
 ) -> ConfluenceEvidence:
-    """Apply the locked PrimeAura confluence gate using only active evidence."""
+    """Apply the locked PrimeAura confluence gate using current active evidence."""
     missing = []
     bullish = direction == "BUY"
 
@@ -27,7 +28,7 @@ def evaluate_locked_confluence(
         missing.append("M15 structure")
 
     required_bos = "BULLISH_BOS" if bullish else "BEARISH_BOS"
-    if not any(x.kind == required_bos for x in context.structure.breaks):
+    if not any(x.kind == required_bos for x in bos):
         missing.append("confirmed BOS")
 
     ob_kind = "BULLISH_OB" if bullish else "BEARISH_OB"
@@ -42,16 +43,13 @@ def evaluate_locked_confluence(
     if not any(x.kind == sweep_kind for x in sweeps):
         missing.append("liquidity sweep")
 
-    reasons = (
-        "H1 bias aligned",
-        "M15 structure aligned",
-        "confirmed BOS",
-        "active order block",
-        "active FVG",
-        "liquidity sweep confirmed",
+    reason_map = (
+        ("H1 bias", "H1 bias aligned"),
+        ("M15 structure", "M15 structure aligned"),
+        ("confirmed BOS", "confirmed BOS"),
+        ("active order block", "active order block"),
+        ("active FVG", "active FVG"),
+        ("liquidity sweep", "liquidity sweep confirmed"),
     )
-    return ConfluenceEvidence(
-        direction,
-        tuple(x for x in reasons if x.lower().replace(" ", "_") not in set()),
-        tuple(missing),
-    )
+    reasons = tuple(text for key, text in reason_map if key not in missing)
+    return ConfluenceEvidence(direction, reasons, tuple(missing))
