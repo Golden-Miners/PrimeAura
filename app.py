@@ -112,3 +112,58 @@ if filtered:
             if r.get("risk_factors"):
                 st.write("**Risk factors:** " + ", ".join(r["risk_factors"]))
             st.caption(f"{r.get('timestamp', '')} • {r.get('status', '')}")
+
+
+st.divider()
+st.header("Historical Backtest")
+st.caption("Read-only historical research using MT5 closed candles. No orders are placed.")
+
+bt_symbol = st.selectbox("Backtest instrument", ["XAUUSD", "XAGUSD"], key="bt_symbol")
+bt_start = st.date_input("Start date", key="bt_start")
+bt_end = st.date_input("End date", key="bt_end")
+
+if st.button("Run historical backtest", type="primary"):
+    if bt_start >= bt_end:
+        st.error("End date must be after start date.")
+    else:
+        try:
+            from datetime import datetime, time, timezone
+            from src.primeaura.backtest.runner import run_historical
+            from src.primeaura.data.market_service import MarketDataService
+
+            start = datetime.combine(bt_start, time.min, tzinfo=timezone.utc)
+            end = datetime.combine(bt_end, time.max, tzinfo=timezone.utc)
+
+            service = MarketDataService()
+            service.connect()
+            try:
+                with st.spinner("Loading historical MT5 data and replaying the strategy..."):
+                    historical = service.fetch_multi_timeframe_range(bt_symbol, start, end)
+                    trades, metrics = run_historical(bt_symbol, historical)
+            finally:
+                service.close()
+
+            m1, m2, m3, m4, m5 = st.columns(5)
+            m1.metric("Trades", metrics.trade_count)
+            m2.metric("Win rate", f"{metrics.win_rate:.2f}%")
+            m3.metric("Net P&L", str(metrics.net_pnl))
+            m4.metric("Profit factor", str(metrics.profit_factor))
+            m5.metric("Max drawdown", str(metrics.max_drawdown))
+
+            if not trades:
+                st.warning("No completed signals occurred in this period.")
+            else:
+                st.subheader("Historical trades")
+                table = []
+                for signal, result in trades:
+                    table.append({
+                        "Time": signal.timestamp if hasattr(signal, "timestamp") else "—",
+                        "Direction": signal.direction,
+                        "Entry": str(result.entry),
+                        "Exit": str(result.exit),
+                        "R": str(result.r_multiple),
+                        "Bars": result.bars_held,
+                    })
+                st.dataframe(table, use_container_width=True)
+        except Exception as exc:
+            st.error(f"Backtest failed: {exc}")
