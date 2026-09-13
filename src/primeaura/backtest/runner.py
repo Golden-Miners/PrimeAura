@@ -46,7 +46,7 @@ def run_historical(
         history = {
             "H1": _closed_as_of(h1, decision_time, "H1")[-500:],
             "M15": _closed_as_of(m15, decision_time, "M15")[-500:],
-            "M5": m5[max(0, i - 499):i + 1],
+            "M5": m5[max(0, i - 499):i],
         }
         if min(map(len, history.values())) < 20:
             continue
