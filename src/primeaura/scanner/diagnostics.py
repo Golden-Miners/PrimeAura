@@ -16,6 +16,8 @@ class DirectionDiagnostic:
     stop_loss: Decimal | None = None
     tp1: Decimal | None = None
     rr_tp1: Decimal | None = None
+    tp2: Decimal | None = None
+    rr_tp2: Decimal | None = None
 
 def diagnose_from_bars(bars_by_tf: dict[str, list]) -> tuple[DirectionDiagnostic, ...]:
     """Explain confluence and the final signal/RR rejection reason."""
@@ -52,24 +54,26 @@ def diagnose_from_bars(bars_by_tf: dict[str, list]) -> tuple[DirectionDiagnostic
         ]
         targets = sorted(targets, reverse=not bullish)
 
+        tp1 = tp2 = rr1 = rr2 = None
         if not targets:
             gate = "BLOCKED: no opposing liquidity target"
-            tp1 = rr = None
         else:
             tp1 = targets[0]
+            if len(targets) > 1:
+                tp2 = targets[1]
             risk = abs(entry - sl)
             if risk <= 0:
                 gate = "BLOCKED: invalid stop-loss distance"
-                rr = None
             else:
-                rr = abs(tp1 - entry) / risk
+                rr1 = abs(tp1 - entry) / risk
+                rr2 = abs(tp2 - entry) / risk if tp2 is not None else None
                 gate = (
-                    f"PASS: RR {rr:.2f} >= {MIN_RR:.1f}"
-                    if rr >= MIN_RR
-                    else f"BLOCKED: RR {rr:.2f} < {MIN_RR:.1f}"
+                    f"PASS: RR1 {rr1:.2f} >= {MIN_RR:.1f}"
+                    if rr1 >= MIN_RR
+                    else f"BLOCKED: RR1 {rr1:.2f} < {MIN_RR:.1f}"
                 )
 
         results.append(DirectionDiagnostic(
-            direction, evidence.reasons, (), gate, entry, sl, tp1, rr
+            direction, evidence.reasons, (), gate, entry, sl, tp1, rr1, tp2, rr2
         ))
     return tuple(results)
