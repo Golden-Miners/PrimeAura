@@ -23,18 +23,18 @@ def load_diagnostics():
 
 st.sidebar.header("Market Scanner")
 instrument_text = st.sidebar.text_input("Symbols", "XAUUSD, XAGUSD")
+requested_symbols = tuple(x.strip() for x in instrument_text.split(",") if x.strip())
 scan_count = st.sidebar.number_input("Bars per timeframe", min_value=100, max_value=2000, value=500, step=100)
 
 if st.sidebar.button("Scan MT5 now", type="primary"):
     try:
         from src.primeaura.scanner.live import LiveScanner
-        symbols = tuple(x.strip() for x in instrument_text.split(",") if x.strip())
-        if not symbols:
+        if not requested_symbols:
             st.error("Enter at least one symbol.")
         else:
             scanner = LiveScanner()
             created = []
-            for symbol in symbols:
+            for symbol in requested_symbols:
                 created.extend(scanner.scan(symbol, int(scan_count)))
             st.success(f"Scan complete. {len(created)} new signal(s) recorded.")
             st.rerun()
@@ -65,18 +65,29 @@ st.subheader("Latest Signals")
 if not filtered:
     st.info("No signals recorded yet. A zero-signal scan is valid when the confluence gate is not satisfied.")
 
-for symbol in sorted(diagnostics):
-    if instrument != "All" and symbol != instrument:
-        continue
-    with st.expander(f"{symbol} — Why no signal?"):
-        for d in diagnostics[symbol]:
-            st.markdown(f"**{d['direction']}**")
-            passed = d.get("passed", [])
-            missing = d.get("missing", [])
-            st.write("Passed: " + (", ".join(passed) if passed else "None"))
-            st.write("Missing: " + (", ".join(missing) if missing else "None"))
-            if not missing:
-                st.success("All confluence requirements passed; signal-generation/RR gates decide the final result.")
+st.subheader("Latest Scan Diagnostics")
+shown_diagnostics = [s for s in requested_symbols if s in diagnostics]
+if not shown_diagnostics:
+    st.caption("Run an MT5 scan to populate diagnostics.")
+else:
+    for symbol in shown_diagnostics:
+        with st.expander(f"{symbol} — Why no signal?", expanded=False):
+            for d in diagnostics[symbol]:
+                st.markdown(f"**{d['direction']}**")
+                passed = d.get("passed", [])
+                missing = d.get("missing", [])
+                st.write("Passed: " + (", ".join(passed) if passed else "None"))
+                st.write("Missing: " + (", ".join(missing) if missing else "None"))
+                gate = d.get("final_gate", "Unknown")
+                if gate.startswith("PASS:"):
+                    st.success(gate)
+                else:
+                    st.warning(gate)
+                if d.get("entry") is not None:
+                    st.write(
+                        f"Entry: {d['entry']} | SL: {d.get('stop_loss', '—')} | "
+                        f"TP1: {d.get('tp1', '—')} | RR: {d.get('rr_tp1', '—')}"
+                    )
 
 if filtered:
     for r in filtered:
