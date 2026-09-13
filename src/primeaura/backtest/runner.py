@@ -66,3 +66,16 @@ def run_historical(
                     return tuple(paired), calculate_metrics([x[1] for x in paired])
 
     return tuple(paired), calculate_metrics([x[1] for x in paired])
+
+
+def split_train_test(start: datetime, end: datetime, train_ratio: float = 0.7) -> tuple[tuple[datetime, datetime], tuple[datetime, datetime]]:
+    """Create a chronological, non-overlapping train/test split."""
+    if start.tzinfo is None or end.tzinfo is None:
+        raise ValueError("start and end must be timezone-aware")
+    if start >= end:
+        raise ValueError("start must be before end")
+    if not 0 < train_ratio < 1:
+        raise ValueError("train_ratio must be between 0 and 1")
+    duration = end - start
+    split = start + duration * train_ratio
+    return (start, split), (split, end)
