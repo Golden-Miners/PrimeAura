@@ -33,9 +33,12 @@ def run_historical(
 
     paired: list[tuple[Signal, TradeResult]] = []
     last_exit_time: datetime | None = None
+    last_decision_time: datetime | None = None
 
     for i in range(warmup, len(m5)):
         decision_bar = m5[i]
+        if last_decision_time is not None and decision_bar.timestamp <= last_decision_time:
+            continue
         decision_time = decision_bar.timestamp + timedelta(minutes=5)
         if last_exit_time is not None and decision_time < last_exit_time:
             continue
@@ -58,6 +61,7 @@ def run_historical(
             if result is not None:
                 paired.append((signal, result))
                 last_exit_time = decision_time + timedelta(minutes=5 * result.bars_held)
+                last_decision_time = decision_time
                 if max_signals is not None and len(paired) >= max_signals:
                     return tuple(paired), calculate_metrics([x[1] for x in paired])
 
