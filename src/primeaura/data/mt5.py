@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 import os
 
 from .models import MarketSnapshot, OHLCVBar
@@ -8,6 +9,10 @@ TIMEFRAME_MAP = {
     "M15": "TIMEFRAME_M15",
     "H1": "TIMEFRAME_H1",
 }
+
+def _decimal(value) -> Decimal:
+    """Convert MT5/NumPy scalar values before Pydantic validation."""
+    return Decimal(str(value))
 
 class MT5DataSource:
     """Read-only MT5 market-data adapter.
@@ -58,11 +63,11 @@ class MT5DataSource:
                 instrument=instrument,
                 timeframe=timeframe,
                 timestamp=datetime.fromtimestamp(int(row["time"]), tz=timezone.utc),
-                open=row["open"],
-                high=row["high"],
-                low=row["low"],
-                close=row["close"],
-                volume=row["tick_volume"],
+                open=_decimal(row["open"]),
+                high=_decimal(row["high"]),
+                low=_decimal(row["low"]),
+                close=_decimal(row["close"]),
+                volume=_decimal(int(row["tick_volume"])),
             )
             for row in rates
         )
