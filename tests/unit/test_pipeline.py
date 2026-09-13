@@ -17,3 +17,7 @@ def test_pipeline_rejects_lookahead_index():
     def bad(data,i):
         if i==0: return __import__("primeaura.backtest.pipeline",fromlist=["CandidateTrade"]).CandidateTrade(1,"BUY",Decimal("100"),Decimal("102"),Decimal("1"),1)
     with pytest.raises(ValueError): run_backtest(bars(),bad)
+
+def test_end_to_end_scanner_pipeline_exists():
+    from primeaura.scanner.pipeline import generate_from_bars
+    assert callable(generate_from_bars)
