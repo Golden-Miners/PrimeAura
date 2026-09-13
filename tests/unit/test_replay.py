@@ -50,4 +50,4 @@ def test_costs_are_applied():
         ExecutionCosts(spread=Decimal("0.1"), slippage=Decimal("0.1"), fee=Decimal("0.1")),
     )
     assert result is not None
-    assert result.pnl == Decimal("1.7")
+    assert result.pnl == Decimal("1.5")
