@@ -127,13 +127,20 @@ bt_end = st.date_input("End date", value=bt_default_end, key="bt_end")
 wf_train_days = st.number_input("Walk-forward context days", min_value=1, max_value=365, value=14, step=1, key="wf_train_days")
 wf_test_days = st.number_input("Walk-forward OOS days", min_value=1, max_value=90, value=7, step=1, key="wf_test_days")
 
+st.subheader("Execution-cost stress assumptions")
+st.caption("Enter price-unit costs for one side of the trade. These are research assumptions, not broker quotes.")
+base_spread = st.number_input("Base spread (price units)", min_value=0.0, value=0.0, step=0.1, format="%.4f", key="bt_spread")
+base_slippage = st.number_input("Base slippage (price units)", min_value=0.0, value=0.0, step=0.1, format="%.4f", key="bt_slippage")
+base_fee = st.number_input("Base fee per completed trade (price units)", min_value=0.0, value=0.0, step=0.1, format="%.4f", key="bt_fee")
+
 if st.button("Run historical backtest", type="primary"):
     if bt_start >= bt_end:
         st.error("End date must be after start date.")
     else:
         try:
             from datetime import datetime, time, timezone
-            from src.primeaura.backtest.runner import build_walk_forward_windows, evaluate_walk_forward_oos, run_historical, summarize_walk_forward_oos
+            from src.primeaura.backtest.engine import ExecutionCosts
+            from src.primeaura.backtest.runner import build_walk_forward_windows, cost_stress_results, evaluate_walk_forward_oos, run_historical, summarize_walk_forward_oos
             from src.primeaura.data.market_service import MarketDataService
 
             start = datetime.combine(bt_start, time.min, tzinfo=timezone.utc)
@@ -243,6 +250,36 @@ if st.button("Run historical backtest", type="primary"):
                 st.dataframe(rows, use_container_width=True)
             else:
                 st.info("The selected date range is too short for the configured walk-forward windows.")
+
+            st.subheader("Execution-cost stress test")
+            stress_signals = [
+                (signal, [bar for bar in historical.get("M5", []) if signal.timestamp is not None and bar.timestamp >= signal.timestamp])
+                for signal, _ in trades
+                if signal.timestamp is not None
+            ]
+            scenarios = tuple(
+                (f"{multiplier}x costs", ExecutionCosts(
+                    spread=base_spread * multiplier,
+                    slippage=base_slippage * multiplier,
+                    fee=base_fee * multiplier,
+                ))
+                for multiplier in (0, 1, 2, 3)
+            )
+            stress = cost_stress_results(stress_signals, scenarios)
+            st.dataframe(
+                [
+                    {
+                        "Scenario": name,
+                        "Trades": metrics.trade_count,
+                        "Win Rate": f"{metrics.win_rate:.2f}%",
+                        "Net P&L": str(metrics.net_pnl),
+                        "Max Drawdown": str(metrics.max_drawdown),
+                        "Profit Factor": str(metrics.profit_factor),
+                    }
+                    for name, metrics in stress
+                ],
+                use_container_width=True,
+            )
 
             if not trades:
                 st.warning("No completed signals occurred in this period.")
