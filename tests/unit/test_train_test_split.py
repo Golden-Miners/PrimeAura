@@ -17,3 +17,29 @@ def test_split_rejects_invalid_ratio():
     end = datetime(2026, 2, 1, tzinfo=timezone.utc)
     with pytest.raises(ValueError):
         split_train_test(start, end, 0)
+
+
+def test_walk_forward_windows_are_chronological_and_non_overlapping():
+    from primeaura.backtest.runner import build_walk_forward_windows
+
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    end = datetime(2026, 5, 1, tzinfo=timezone.utc)
+    windows = build_walk_forward_windows(start, end, train_days=30, test_days=10)
+
+    assert len(windows) == 3
+    assert windows[0][0] == start
+    assert windows[0][1] == windows[0][2]
+    assert windows[-1][3] == end
+    for previous, current in zip(windows, windows[1:]):
+        assert previous[3] == current[0]
+
+
+def test_walk_forward_rejects_invalid_ranges():
+    from primeaura.backtest.runner import build_walk_forward_windows
+
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    end = datetime(2026, 2, 1, tzinfo=timezone.utc)
+    with pytest.raises(ValueError):
+        build_walk_forward_windows(start, end, train_days=0, test_days=10)
+    with pytest.raises(ValueError):
+        build_walk_forward_windows(start, end, train_days=20, test_days=20)
