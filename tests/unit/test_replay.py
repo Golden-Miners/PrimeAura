@@ -5,6 +5,7 @@ from primeaura.backtest.engine import ExecutionCosts
 from primeaura.backtest.replay import resolve_signal_on_bars
 from primeaura.data.models import OHLCVBar
 from primeaura.signals.models import Signal
+from primeaura.research.replay import HistoricalReplay
 
 def bar(i, high, low):
     return OHLCVBar(
@@ -51,3 +52,12 @@ def test_costs_are_applied():
     )
     assert result is not None
     assert result.pnl == Decimal("1.5")
+
+def test_historical_strategy_replay_exposes_only_available_candles():
+    seen = []
+    def adapter(instrument, context):
+        seen.append(len(context["close"]))
+        return None
+    bars = [bar(i, 101, 99) for i in range(40)]
+    HistoricalReplay().run("XAUUSD", "test", bars, adapter)
+    assert seen == list(range(30, 41))
