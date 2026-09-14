@@ -38,7 +38,8 @@ def validate_bars(bars: list[OHLCVBar]) -> dict:
         expected = timedelta(minutes=minutes)
         for a, b in zip(ordered, ordered[1:]):
             delta = b.timestamp - a.timestamp
-            if delta > expected:
+            # Cross-day gaps may be legitimate market/session closures.
+            if delta > expected and a.timestamp.date() == b.timestamp.date():
                 issues.append(f"time_gap:{a.timestamp.isoformat()}->{b.timestamp.isoformat()}")
 
     return {
