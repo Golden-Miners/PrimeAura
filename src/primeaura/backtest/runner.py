@@ -93,3 +93,29 @@ def split_trade_results_by_time(
             continue
         (train if signal_time < split_time else test).append((signal, result))
     return tuple(train), tuple(test)
+
+
+def build_walk_forward_windows(
+    start: datetime,
+    end: datetime,
+    train_days: int,
+    test_days: int,
+) -> tuple[tuple[datetime, datetime, datetime, datetime], ...]:
+    """Build sequential train/test windows for walk-forward robustness analysis."""
+    if start.tzinfo is None or end.tzinfo is None:
+        raise ValueError("start and end must be timezone-aware")
+    if start >= end:
+        raise ValueError("start must be before end")
+    if train_days <= 0 or test_days <= 0:
+        raise ValueError("train_days and test_days must be positive")
+
+    train_delta = timedelta(days=train_days)
+    test_delta = timedelta(days=test_days)
+    cursor = start
+    windows = []
+    while cursor + train_delta + test_delta <= end:
+        train_end = cursor + train_delta
+        test_end = train_end + test_delta
+        windows.append((cursor, train_end, train_end, test_end))
+        cursor = test_end
+    return tuple(windows)
