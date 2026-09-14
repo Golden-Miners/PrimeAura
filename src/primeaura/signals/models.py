@@ -1,9 +1,11 @@
+from datetime import datetime
 from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field
 
 class Signal(BaseModel):
     model_config=ConfigDict(frozen=True,extra="forbid")
     instrument: str
+    timestamp: datetime | None = None
     direction: str
     strategy_id: str
     strategy_version: str
