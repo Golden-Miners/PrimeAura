@@ -194,3 +194,15 @@ def summarize_walk_forward_oos(
         "windows_negative": len(evaluated) - positive,
         "all_evaluated_positive": bool(evaluated) and positive == len(evaluated),
     }
+
+
+def cost_stress_results(
+    signals: list[tuple[Signal, list[OHLCVBar]]],
+    scenarios: tuple[tuple[str, ExecutionCosts], ...],
+) -> tuple[tuple[str, BacktestMetrics], ...]:
+    """Run identical signals under deterministic execution-cost scenarios."""
+    results = []
+    for name, costs in scenarios:
+        trades = run_replay(signals, costs)
+        results.append((name, calculate_metrics(trades)))
+    return tuple(results)
