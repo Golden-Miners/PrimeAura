@@ -55,7 +55,7 @@ def diagnose_from_bars(bars_by_tf: dict[str, list]) -> tuple[DirectionDiagnostic
             results.append(DirectionDiagnostic(
                 direction, evidence.reasons, evidence.missing,
                 "BLOCKED: confluence requirements incomplete", entry,
-                None, None, None, None, None, None,
+                None, None, None, None, None,
                 bar_counts, latest_bars, evidence_counts
             ))
             continue
