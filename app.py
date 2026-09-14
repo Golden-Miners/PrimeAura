@@ -152,6 +152,18 @@ if st.button("Run historical backtest", type="primary"):
             try:
                 with st.spinner("Loading historical MT5 data and replaying the strategy..."):
                     historical = service.fetch_multi_timeframe_range(bt_symbol, data_start, end)
+                    from src.primeaura.data.integrity import validate_multitimeframe
+                    integrity = validate_multitimeframe(historical)
+                    st.subheader("Historical data integrity")
+                    if integrity["valid"]:
+                        st.success("PASS — no integrity violations detected in the fetched MT5 dataset.")
+                    else:
+                        st.error("FAIL — backtest blocked because the fetched MT5 dataset has integrity violations.")
+                        for tf, issues in integrity["issues"].items():
+                            st.write(f"**{tf}:**")
+                            for issue in issues[:20]:
+                                st.write(f"- {issue}")
+                        st.stop()
                     trades, metrics = run_historical(bt_symbol, historical)
             finally:
                 service.close()
