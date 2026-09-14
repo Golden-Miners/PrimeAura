@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from ..analysis.activation import ActiveZone, LiquiditySweep
 from ..analysis.multi_timeframe import MultiTimeframeContext
@@ -8,7 +9,7 @@ from .models import Signal
 BUFFER=Decimal("0.0005")
 MIN_RR=Decimal("2.0")
 
-def generate_locked_signal(instrument:str,context:MultiTimeframeContext,direction:str,entry:Decimal,sweeps:list[LiquiditySweep],bos:list[StructureBreak],obs:list[ActiveZone],fvgs:list[ActiveZone],pools:list[LiquidityPool],strategy_id:str="smc-confluence",strategy_version:str="1.0.0") -> Signal|None:
+def generate_locked_signal(instrument:str,context:MultiTimeframeContext,direction:str,entry:Decimal,sweeps:list[LiquiditySweep],bos:list[StructureBreak],obs:list[ActiveZone],fvgs:list[ActiveZone],pools:list[LiquidityPool],strategy_id:str="smc-confluence",strategy_version:str="1.0.0",timestamp:datetime|None=None) -> Signal|None:
     bullish=direction=="BUY"
     if direction not in {"BUY","SELL"}: return None
     if (context.higher.bias=="BULLISH") != bullish or (context.structure.structure=="BULLISH") != bullish: return None
@@ -30,4 +31,4 @@ def generate_locked_signal(instrument:str,context:MultiTimeframeContext,directio
     tp2=targets[1] if len(targets)>1 else None
     rr2=abs(tp2-entry)/risk if tp2 is not None else None
     confidence=Decimal("100") if len(valid_fvgs)>1 else Decimal("85")
-    return Signal(instrument=instrument,direction=direction,strategy_id=strategy_id,strategy_version=strategy_version,entry=entry,stop_loss=sl,tp1=tp1,tp2=tp2,rr_tp1=rr1,rr_tp2=rr2,confidence=confidence,reasoning=("H1 bias aligned","M15 structure aligned","Liquidity sweep confirmed",f"{bos_kind} confirmed","Active order block","Active FVG","TP1 selected from opposing liquidity"),risk_factors=("Execution costs and spread are not represented in this live signal contract",))
+    return Signal(instrument=instrument,timestamp=timestamp,direction=direction,strategy_id=strategy_id,strategy_version=strategy_version,entry=entry,stop_loss=sl,tp1=tp1,tp2=tp2,rr_tp1=rr1,rr_tp2=rr2,confidence=confidence,reasoning=("H1 bias aligned","M15 structure aligned","Liquidity sweep confirmed",f"{bos_kind} confirmed","Active order block","Active FVG","TP1 selected from opposing liquidity"),risk_factors=("Execution costs and spread are not represented in this live signal contract",))
