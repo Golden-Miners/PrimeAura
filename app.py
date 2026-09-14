@@ -155,7 +155,15 @@ if st.button("Run historical backtest", type="primary"):
             m5.metric("Max drawdown", str(metrics.max_drawdown))
 
             from src.primeaura.backtest.report import build_report
+            from src.primeaura.backtest.runner import split_train_test
+
             report = build_report([result for _, result in trades])
+            (train_start, train_end), (test_start, test_end) = split_train_test(start, end)
+            st.subheader("Validation split")
+            st.write(
+                f"In-sample: {train_start.date()} -> {train_end.date()} | "
+                f"Out-of-sample: {test_start.date()} -> {test_end.date()}"
+            )
             if report.equity_curve:
                 st.subheader("Equity Curve")
                 st.line_chart({
