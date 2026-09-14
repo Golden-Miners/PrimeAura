@@ -97,29 +97,36 @@ class MT5DataSource:
 
         # Session times are broker-server seconds from midnight. Normalize
         # them to the same UTC clock used by PrimeAura's OHLCV bars.
-        probe = mt5.copy_rates_from_pos(
-            instrument, getattr(mt5, TIMEFRAME_MAP["M5"]), 1, 1
-        )
-        offset = _server_offset(probe)
-        offset_seconds = int(offset.total_seconds())
-
-        def normalize_second(value: int) -> int:
-            return (int(value) - offset_seconds) % 86400
-
+        # Some MetaTrader5 Python package versions do not expose
+        # symbol_info_session_trade(). Do not fabricate broker sessions when
+        # that capability is unavailable; the integrity layer can still
+        # validate OHLC, duplicates, and same-day gaps.
+        session_api = getattr(mt5, "symbol_info_session_trade", None)
         sessions = {}
-        for day in range(7):
-            day_sessions = []
-            index = 0
-            while True:
-                session = mt5.symbol_info_session_trade(instrument, day, index)
-                if session is None:
-                    break
-                day_sessions.append({
-                    "from": normalize_second(session[0]),
-                    "to": normalize_second(session[1]),
-                })
-                index += 1
-            sessions[day] = day_sessions
+
+        if session_api is not None:
+            probe = mt5.copy_rates_from_pos(
+                instrument, getattr(mt5, TIMEFRAME_MAP["M5"]), 1, 1
+            )
+            offset = _server_offset(probe)
+            offset_seconds = int(offset.total_seconds())
+
+            def normalize_second(value: int) -> int:
+                return (int(value) - offset_seconds) % 86400
+
+            for day in range(7):
+                day_sessions = []
+                index = 0
+                while True:
+                    session = session_api(instrument, day, index)
+                    if session is None:
+                        break
+                    day_sessions.append({
+                        "from": normalize_second(session[0]),
+                        "to": normalize_second(session[1]),
+                    })
+                    index += 1
+                sessions[day] = day_sessions
 
         return {
             "name": info.name,
@@ -127,6 +134,7 @@ class MT5DataSource:
             "digits": info.digits,
             "point": float(info.point),
             "sessions": sessions,
+            "session_metadata_available": session_api is not None,
         }
 
     def _snapshot(self, instrument: str, timeframe: str, rates, offset: timedelta = timedelta(0)) -> MarketSnapshot:
