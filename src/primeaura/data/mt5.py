@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import os
 from pathlib import Path
@@ -10,6 +10,36 @@ TIMEFRAME_MAP = {"M5": "TIMEFRAME_M5", "M15": "TIMEFRAME_M15", "H1": "TIMEFRAME_
 
 def _decimal(value) -> Decimal:
     return Decimal(str(value))
+
+
+def _server_offset(rates) -> timedelta:
+    """Resolve an MT5 broker-server clock offset for live bar timestamps.
+
+    MetaTrader feeds can expose broker-local candle epochs. PrimeAura stores
+    timestamps as UTC, so an explicit PRIMEAURA_MT5_SERVER_OFFSET_HOURS value
+    takes precedence. Otherwise, when the newest closed bar is in the future
+    by roughly a whole number of hours, infer that whole-hour offset. If the
+    feed already looks like UTC, leave it unchanged.
+    """
+    configured = os.getenv("PRIMEAURA_MT5_SERVER_OFFSET_HOURS")
+    if configured is not None:
+        try:
+            return timedelta(hours=int(configured))
+        except ValueError as exc:
+            raise RuntimeError(
+                "PRIMEAURA_MT5_SERVER_OFFSET_HOURS must be an integer number of hours"
+            ) from exc
+
+    if rates is None or len(rates) == 0:
+        return timedelta(0)
+
+    latest_raw = datetime.fromtimestamp(int(rates[-1]["time"]), tz=timezone.utc)
+    future_hours = (latest_raw - datetime.now(timezone.utc)).total_seconds() / 3600
+    if 1.0 <= future_hours <= 12.0:
+        rounded = round(future_hours)
+        if abs(future_hours - rounded) <= 0.25:
+            return timedelta(hours=rounded)
+    return timedelta(0)
 
 class MT5DataSource:
     """Read-only MT5 adapter; initialization occurs only when requested."""
@@ -88,12 +118,12 @@ class MT5DataSource:
             "sessions": sessions,
         }
 
-    def _snapshot(self, instrument: str, timeframe: str, rates) -> MarketSnapshot:
+    def _snapshot(self, instrument: str, timeframe: str, rates, offset: timedelta = timedelta(0)) -> MarketSnapshot:
         bars = tuple(
             OHLCVBar(
                 instrument=instrument,
                 timeframe=timeframe,
-                timestamp=datetime.fromtimestamp(int(row["time"]), tz=timezone.utc),
+                timestamp=datetime.fromtimestamp(int(row["time"]), tz=timezone.utc) - offset,
                 open=_decimal(row["open"]),
                 high=_decimal(row["high"]),
                 low=_decimal(row["low"]),
@@ -125,7 +155,7 @@ class MT5DataSource:
             raise RuntimeError(
                 f"MT5 returned no rates for {instrument} {timeframe}: {mt5.last_error()}"
             )
-        return self._snapshot(instrument, timeframe, rates)
+        return self._snapshot(instrument, timeframe, rates, _server_offset(rates))
 
     def bars_range(
         self,
