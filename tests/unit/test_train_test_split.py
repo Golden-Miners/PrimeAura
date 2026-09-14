@@ -65,3 +65,26 @@ def test_signal_decision_timestamp_is_available_for_oos_partitioning():
         reasoning=("test",),
     )
     assert signal.timestamp == timestamp
+
+
+def test_walk_forward_summary_counts_only_windows_with_trades():
+    from decimal import Decimal
+    from primeaura.backtest.models import TradeResult
+    from primeaura.backtest.runner import summarize_walk_forward_oos
+
+    win = TradeResult(
+        entry=Decimal("1"), exit=Decimal("2"), direction="BUY",
+        pnl=Decimal("1"), r_multiple=Decimal("1"), bars_held=1
+    )
+    loss = TradeResult(
+        entry=Decimal("2"), exit=Decimal("1"), direction="SELL",
+        pnl=Decimal("-1"), r_multiple=Decimal("-1"), bars_held=1
+    )
+    summary = summarize_walk_forward_oos(
+        (((None, win),), ((None, loss),), ())
+    )
+    assert summary["windows_total"] == 3
+    assert summary["windows_with_trades"] == 2
+    assert summary["windows_positive"] == 1
+    assert summary["windows_negative"] == 1
+    assert summary["all_evaluated_positive"] is False
