@@ -88,3 +88,29 @@ def test_walk_forward_summary_counts_only_windows_with_trades():
     assert summary["windows_positive"] == 1
     assert summary["windows_negative"] == 1
     assert summary["all_evaluated_positive"] is False
+
+
+def test_walk_forward_cost_stress_has_one_row_per_window_and_scenario():
+    from primeaura.backtest.engine import ExecutionCosts
+    from primeaura.backtest.runner import walk_forward_cost_stress
+
+    windows = (
+        (
+            datetime(2026, 1, 1, tzinfo=timezone.utc),
+            datetime(2026, 1, 2, tzinfo=timezone.utc),
+            datetime(2026, 1, 2, tzinfo=timezone.utc),
+            datetime(2026, 1, 3, tzinfo=timezone.utc),
+        ),
+    )
+    bars = {
+        "M5": [_bar(datetime(2026, 1, 2, 12, 0, tzinfo=timezone.utc), Decimal("100"))],
+        "M15": [_bar(datetime(2026, 1, 2, 11, 45, tzinfo=timezone.utc), Decimal("100"))],
+        "H1": [_bar(datetime(2026, 1, 2, 11, 0, tzinfo=timezone.utc), Decimal("100"))],
+    }
+    scenarios = (
+        ("0x", ExecutionCosts()),
+        ("1x", ExecutionCosts(spread=Decimal("1"))),
+    )
+    rows = walk_forward_cost_stress(bars, windows, "XAUUSD", scenarios, warmup=0)
+    assert len(rows) == 2
+    assert {row["scenario"] for row in rows} == {"0x", "1x"}
