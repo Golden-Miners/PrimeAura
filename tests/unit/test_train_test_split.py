@@ -43,3 +43,25 @@ def test_walk_forward_rejects_invalid_ranges():
         build_walk_forward_windows(start, end, train_days=0, test_days=10)
     with pytest.raises(ValueError):
         build_walk_forward_windows(start, end, train_days=20, test_days=20)
+
+
+def test_signal_decision_timestamp_is_available_for_oos_partitioning():
+    from decimal import Decimal
+    from datetime import datetime, timezone
+    from primeaura.signals.models import Signal
+
+    timestamp = datetime(2026, 1, 10, tzinfo=timezone.utc)
+    signal = Signal(
+        instrument="XAUUSD",
+        timestamp=timestamp,
+        direction="BUY",
+        strategy_id="test",
+        strategy_version="1.0.0",
+        entry=Decimal("4000"),
+        stop_loss=Decimal("3990"),
+        tp1=Decimal("4020"),
+        rr_tp1=Decimal("2"),
+        confidence=Decimal("85"),
+        reasoning=("test",),
+    )
+    assert signal.timestamp == timestamp
