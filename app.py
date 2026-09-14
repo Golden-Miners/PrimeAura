@@ -90,6 +90,18 @@ else:
                         f"TP1: {d.get('tp1', '—')} | RR1: {d.get('rr_tp1', '—')} | "
                         f"TP2: {d.get('tp2', '—')} | RR2: {d.get('rr_tp2', '—')}"
                     )
+                counts = d.get("evidence_counts")
+                if counts:
+                    st.caption(
+                        "Evidence: "
+                        + " | ".join(f"{name}={value}" for name, value in counts.items())
+                    )
+                latest = d.get("latest_bars")
+                if latest:
+                    st.caption(
+                        "Latest closed bars (UTC): "
+                        + " | ".join(f"{tf}={value}" for tf, value in latest.items())
+                    )
 
 if filtered:
     for r in filtered:
