@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal
 from ..analysis.activation import active_fvgs, active_order_blocks, detect_liquidity_sweeps
 from ..signals.mtf_confluence import evaluate_locked_confluence
@@ -33,6 +34,7 @@ def generate_from_bars(instrument: str, bars_by_tf: dict[str, list]):
             active_obs,
             active_fvgs_list,
             pools,
+            timestamp=bars_by_tf["M5"][-1].timestamp + timedelta(minutes=5),
         )
         if signal:
             candidates.append(signal)
