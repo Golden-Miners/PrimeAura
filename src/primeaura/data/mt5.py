@@ -55,6 +55,39 @@ class MT5DataSource:
         import MetaTrader5 as mt5
         mt5.shutdown()
 
+    def session_info(self, instrument: str) -> dict:
+        """Return broker-provided symbol/session metadata without placing orders."""
+        import MetaTrader5 as mt5
+
+        if not mt5.symbol_select(instrument, True):
+            raise RuntimeError(f"MT5 symbol is unavailable: {instrument}")
+        info = mt5.symbol_info(instrument)
+        if info is None:
+            raise RuntimeError(f"MT5 symbol_info failed for {instrument}: {mt5.last_error()}")
+
+        sessions = {}
+        for day in range(7):
+            day_sessions = []
+            index = 0
+            while True:
+                session = mt5.symbol_info_session_trade(instrument, day, index)
+                if session is None:
+                    break
+                day_sessions.append({
+                    "from": session[0],
+                    "to": session[1],
+                })
+                index += 1
+            sessions[day] = day_sessions
+
+        return {
+            "name": info.name,
+            "trade_mode": info.trade_mode,
+            "digits": info.digits,
+            "point": float(info.point),
+            "sessions": sessions,
+        }
+
     def _snapshot(self, instrument: str, timeframe: str, rates) -> MarketSnapshot:
         bars = tuple(
             OHLCVBar(
