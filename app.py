@@ -140,7 +140,7 @@ if st.button("Run historical backtest", type="primary"):
         try:
             from datetime import datetime, time, timezone
             from src.primeaura.backtest.engine import ExecutionCosts
-            from src.primeaura.backtest.runner import build_walk_forward_windows, cost_stress_results, evaluate_walk_forward_oos, run_historical, summarize_walk_forward_oos
+            from src.primeaura.backtest.runner import build_walk_forward_windows, cost_stress_results, evaluate_walk_forward_oos, run_historical, summarize_walk_forward_oos, walk_forward_cost_stress
             from src.primeaura.data.market_service import MarketDataService
 
             start = datetime.combine(bt_start, time.min, tzinfo=timezone.utc)
@@ -248,6 +248,21 @@ if st.button("Run historical backtest", type="primary"):
                         "Net P&L": str(window_metrics.net_pnl),
                     })
                 st.dataframe(rows, use_container_width=True)
+
+                wf_cost_scenarios = tuple(
+                    (f"{multiplier}x costs", ExecutionCosts(
+                        spread=base_spread * multiplier,
+                        slippage=base_slippage * multiplier,
+                        fee=base_fee * multiplier,
+                    ))
+                    for multiplier in (0, 1, 2, 3)
+                )
+                wf_cost_rows = walk_forward_cost_stress(
+                    historical, wf_windows, bt_symbol, wf_cost_scenarios
+                )
+                st.subheader("Walk-forward OOS cost resilience")
+                st.caption("Each cost scenario is evaluated independently inside each unseen OOS window.")
+                st.dataframe(wf_cost_rows, use_container_width=True)
             else:
                 st.info("The selected date range is too short for the configured walk-forward windows.")
 
