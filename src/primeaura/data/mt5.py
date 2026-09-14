@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 import os
+from pathlib import Path
+import sys
 
 from .models import MarketSnapshot, OHLCVBar
 
@@ -15,14 +17,39 @@ class MT5DataSource:
     def __init__(self, terminal_path: str | None = None):
         self.terminal_path = terminal_path or os.getenv("PRIMEAURA_MT5_PATH")
 
+    def _discover_terminal_path(self) -> str | None:
+        """Find a local MT5 terminal when no explicit path is configured."""
+        if self.terminal_path:
+            return self.terminal_path
+        if sys.platform != "win32":
+            return None
+
+        candidates = [
+            Path(os.environ.get("PROGRAMFILES", "")) / "MetaTrader 5" / "terminal64.exe",
+            Path(os.environ.get("PROGRAMFILES(X86)", "")) / "MetaTrader 5" / "terminal64.exe",
+        ]
+        for root_name in ("LOCALAPPDATA", "APPDATA"):
+            root = Path(os.environ.get(root_name, ""))
+            candidates.extend(root.glob("MetaQuotes/Terminal/*/terminal64.exe"))
+
+        for candidate in candidates:
+            if candidate.is_file():
+                return str(candidate)
+        return None
+
     def connect(self) -> None:
         try:
             import MetaTrader5 as mt5
         except ImportError as exc:
             raise RuntimeError("MetaTrader5 package is not installed") from exc
-        kwargs = {"path": self.terminal_path} if self.terminal_path else {}
+        terminal_path = self._discover_terminal_path()
+        # initialize() connects to an existing terminal or starts it when required.
+        kwargs = {"path": terminal_path} if terminal_path else {}
         if not mt5.initialize(**kwargs):
-            raise RuntimeError(f"MT5 initialization failed: {mt5.last_error()}")
+            raise RuntimeError(
+                f"MT5 initialization failed: {mt5.last_error()}. "
+                "Set PRIMEAURA_MT5_PATH if your terminal is installed in a custom location."
+            )
 
     def shutdown(self) -> None:
         import MetaTrader5 as mt5
