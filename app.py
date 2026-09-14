@@ -124,6 +124,8 @@ bt_default_end = date.today()
 bt_default_start = bt_default_end - timedelta(days=30)
 bt_start = st.date_input("Start date", value=bt_default_start, key="bt_start")
 bt_end = st.date_input("End date", value=bt_default_end, key="bt_end")
+wf_train_days = st.number_input("Walk-forward context days", min_value=1, max_value=365, value=14, step=1, key="wf_train_days")
+wf_test_days = st.number_input("Walk-forward OOS days", min_value=1, max_value=90, value=7, step=1, key="wf_test_days")
 
 if st.button("Run historical backtest", type="primary"):
     if bt_start >= bt_end:
@@ -131,7 +133,7 @@ if st.button("Run historical backtest", type="primary"):
     else:
         try:
             from datetime import datetime, time, timezone
-            from src.primeaura.backtest.runner import run_historical
+            from src.primeaura.backtest.runner import build_walk_forward_windows, evaluate_walk_forward_oos, run_historical
             from src.primeaura.data.market_service import MarketDataService
 
             start = datetime.combine(bt_start, time.min, tzinfo=timezone.utc)
@@ -210,6 +212,32 @@ if st.button("Run historical backtest", type="primary"):
                 st.line_chart({
                     "Drawdown": [float(point.drawdown) for point in report.equity_curve]
                 })
+
+            wf_windows = build_walk_forward_windows(start, end, int(wf_train_days), int(wf_test_days))
+            if wf_windows:
+                _, wf_results, wf_metrics = evaluate_walk_forward_oos(historical, wf_windows, bt_symbol)
+                st.subheader("Walk-forward OOS robustness")
+                st.caption("Rules remain fixed. The context period is not optimized; only completed trades wholly inside each OOS window are counted.")
+                w1, w2, w3, w4 = st.columns(4)
+                w1.metric("OOS Windows", len(wf_windows))
+                w2.metric("OOS Trades", wf_metrics.trade_count)
+                w3.metric("OOS Win Rate", f"{wf_metrics.win_rate:.2f}%")
+                w4.metric("OOS Net P&L", str(wf_metrics.net_pnl))
+                rows = []
+                for i, window in enumerate(wf_windows):
+                    train_start, train_end, test_start, test_end = window
+                    window_trades = wf_results[i]
+                    window_metrics = calculate_metrics([r for _, r in window_trades])
+                    rows.append({
+                        "Window": i + 1,
+                        "Context": f"{train_start.date()} -> {train_end.date()}",
+                        "OOS": f"{test_start.date()} -> {test_end.date()}",
+                        "Trades": window_metrics.trade_count,
+                        "Net P&L": str(window_metrics.net_pnl),
+                    })
+                st.dataframe(rows, use_container_width=True)
+            else:
+                st.info("The selected date range is too short for the configured walk-forward windows.")
 
             if not trades:
                 st.warning("No completed signals occurred in this period.")
