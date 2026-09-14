@@ -119,3 +119,50 @@ def build_walk_forward_windows(
         windows.append((cursor, train_end, train_end, test_end))
         cursor = test_end
     return tuple(windows)
+
+
+def evaluate_walk_forward_oos(
+    bars_by_tf: dict[str, list[OHLCVBar]],
+    windows: tuple[tuple[datetime, datetime, datetime, datetime], ...],
+    instrument: str,
+    warmup: int = 250,
+) -> tuple[
+    tuple[tuple[datetime, datetime, datetime, datetime], ...],
+    tuple[tuple[tuple[Signal, TradeResult], ...], ...],
+    BacktestMetrics,
+]:
+    """Evaluate fixed rules on sequential OOS windows without crossing test boundaries.
+
+    The train portion supplies historical context only; no parameters are
+    optimized. Each test window is replayed with data capped at its test end,
+    so a trade must both start and resolve inside that OOS window to count.
+    """
+    results = []
+    all_oos: list[tuple[Signal, TradeResult]] = []
+
+    for train_start, train_end, test_start, test_end in windows:
+        capped: dict[str, list[OHLCVBar]] = {}
+        for timeframe, bars in bars_by_tf.items():
+            ordered = sorted(bars, key=lambda x: x.timestamp)
+            capped[timeframe] = [bar for bar in ordered if bar.timestamp <= test_end]
+
+        paired, _ = run_historical(
+            instrument,
+            capped,
+            warmup=warmup,
+        )
+
+        window_trades = []
+        for signal, trade in paired:
+            decision_time = signal.timestamp
+            if decision_time is None:
+                continue
+            exit_time = decision_time + timedelta(minutes=5 * trade.bars_held)
+            if test_start <= decision_time < test_end and exit_time <= test_end:
+                window_trades.append((signal, trade))
+                all_oos.append((signal, trade))
+
+        results.append(tuple(window_trades))
+
+    metrics = calculate_metrics([trade for _, trade in all_oos])
+    return windows, tuple(results), metrics
