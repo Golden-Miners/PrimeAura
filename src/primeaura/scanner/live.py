@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from ..data.market_service import MarketDataService
+from ..data.integrity import validate_multitimeframe
 from ..signals.report import SignalReport
 from ..signals.store import SignalStore
 from .diagnostic_store import DiagnosticStore
@@ -23,6 +24,16 @@ class LiveScanner:
         self.market.connect()
         try:
             bars = self.market.fetch_multi_timeframe(instrument, count)
+            integrity = validate_multitimeframe(bars)
+            if not integrity["valid"]:
+                raise RuntimeError(
+                    "MT5 data integrity failed: "
+                    + "; ".join(
+                        f"{tf}: {issue}"
+                        for tf, issues in integrity["issues"].items()
+                        for issue in issues[:5]
+                    )
+                )
             diagnostics = diagnose_from_bars(bars)
             self.diagnostic_store.save(instrument, diagnostics)
             signals = generate_from_bars(instrument, bars)
