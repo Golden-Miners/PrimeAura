@@ -5,7 +5,8 @@ from ..signals.models import Signal
 from ..scanner.pipeline import generate_from_bars
 from .metrics import calculate_metrics
 from .models import BacktestMetrics, TradeResult
-from .replay import resolve_signal_on_bars
+from .replay import resolve_signal_on_bars, run_replay
+from .engine import ExecutionCosts
 
 _TIMEFRAME_MINUTES = {"M5": 5, "M15": 15, "H1": 60}
 
