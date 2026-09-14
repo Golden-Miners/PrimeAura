@@ -9,9 +9,8 @@ EXPECTED_MINUTES = {"M1": 1, "M5": 5, "M15": 15, "M30": 30, "H1": 60, "H4": 240,
 def _session_contains(ts: datetime, sessions: dict | None) -> bool:
     if not sessions:
         return False
-    # MT5 session entries are seconds from midnight in broker time. The
-    # adapter currently exposes them without broker timezone conversion, so
-    # callers must only pass sessions aligned to the bar timestamps.
+    # MT5 session entries are normalized by the adapter to the UTC clock used
+    # by PrimeAura bars. Callers should only pass sessions aligned to bar timestamps.
     seconds = ts.hour * 3600 + ts.minute * 60 + ts.second
     weekday = (ts.weekday() + 1) % 7  # Python Mon=0 -> MT5 Sun=0
     for session in sessions.get(weekday, []):
