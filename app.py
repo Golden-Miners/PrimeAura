@@ -133,7 +133,7 @@ if st.button("Run historical backtest", type="primary"):
     else:
         try:
             from datetime import datetime, time, timezone
-            from src.primeaura.backtest.runner import build_walk_forward_windows, evaluate_walk_forward_oos, run_historical
+            from src.primeaura.backtest.runner import build_walk_forward_windows, evaluate_walk_forward_oos, run_historical, summarize_walk_forward_oos
             from src.primeaura.data.market_service import MarketDataService
 
             start = datetime.combine(bt_start, time.min, tzinfo=timezone.utc)
@@ -223,6 +223,11 @@ if st.button("Run historical backtest", type="primary"):
                 w2.metric("OOS Trades", wf_metrics.trade_count)
                 w3.metric("OOS Win Rate", f"{wf_metrics.win_rate:.2f}%")
                 w4.metric("OOS Net P&L", str(wf_metrics.net_pnl))
+                wf_summary = summarize_walk_forward_oos(wf_results)
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Windows With Trades", wf_summary["windows_with_trades"])
+                c2.metric("Positive OOS Windows", wf_summary["windows_positive"])
+                c3.metric("Negative OOS Windows", wf_summary["windows_negative"])
                 rows = []
                 for i, window in enumerate(wf_windows):
                     train_start, train_end, test_start, test_end = window
