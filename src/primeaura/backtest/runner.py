@@ -166,3 +166,27 @@ def evaluate_walk_forward_oos(
 
     metrics = calculate_metrics([trade for _, trade in all_oos])
     return windows, tuple(results), metrics
+
+
+def summarize_walk_forward_oos(
+    window_results: tuple[tuple[tuple[Signal, TradeResult], ...], ...],
+) -> dict[str, int | bool]:
+    """Summarize consistency across independent OOS windows.
+
+    A window is considered positive only when it contains at least one
+    completed trade and has positive net P&L. This is descriptive, not a
+    statistical significance test and does not imply future profitability.
+    """
+    metrics = [
+        calculate_metrics([trade for _, trade in trades])
+        for trades in window_results
+    ]
+    evaluated = [item for item in metrics if item.trade_count > 0]
+    positive = sum(item.net_pnl > 0 for item in evaluated)
+    return {
+        "windows_total": len(metrics),
+        "windows_with_trades": len(evaluated),
+        "windows_positive": positive,
+        "windows_negative": len(evaluated) - positive,
+        "all_evaluated_positive": bool(evaluated) and positive == len(evaluated),
+    }
