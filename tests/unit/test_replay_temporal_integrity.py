@@ -60,3 +60,35 @@ def test_replay_does_not_use_future_beyond_supplied_boundary():
     )
     bars = [_bar(decision + timedelta(minutes=5), Decimal("100"))]
     assert resolve_signal_on_bars(signal, bars) is None
+
+
+def test_cost_stress_changes_net_result_deterministically():
+    from primeaura.backtest.engine import ExecutionCosts
+
+    decision = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    signal = Signal(
+        instrument="XAUUSD",
+        timestamp=decision,
+        direction="BUY",
+        strategy_id="test",
+        strategy_version="1.0.0",
+        entry=Decimal("100"),
+        stop_loss=Decimal("90"),
+        tp1=Decimal("120"),
+        rr_tp1=Decimal("2"),
+        confidence=Decimal("80"),
+        reasoning=("test",),
+    )
+    bars = [_bar(decision + timedelta(minutes=5), Decimal("120"))]
+    zero = resolve_signal_on_bars(signal, bars)
+    stressed = resolve_signal_on_bars(
+        signal,
+        bars,
+        ExecutionCosts(
+            spread=Decimal("1"),
+            slippage=Decimal("1"),
+            fee=Decimal("1"),
+        ),
+    )
+    assert zero is not None and stressed is not None
+    assert stressed.pnl < zero.pnl
