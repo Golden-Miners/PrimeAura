@@ -179,6 +179,29 @@ if st.button("Run historical backtest", type="primary"):
             o2.metric("IS Profit Factor", str(train_metrics.profit_factor))
             o3.metric("OOS Net P&L", str(test_metrics.net_pnl))
             o4.metric("OOS Profit Factor", str(test_metrics.profit_factor))
+
+            from src.primeaura.backtest.report import build_report
+            is_report = build_report([r for _, r in train_trades])
+            oos_report = build_report([r for _, r in test_trades])
+            st.subheader("Validation risk")
+            r1, r2, r3, r4 = st.columns(4)
+            r1.metric("IS Max Drawdown", str(train_metrics.max_drawdown))
+            r2.metric("OOS Max Drawdown", str(test_metrics.max_drawdown))
+            r3.metric("IS P&L / DD", str(is_report.metrics.net_pnl / train_metrics.max_drawdown if train_metrics.max_drawdown else "—"))
+            r4.metric("OOS P&L / DD", str(oos_report.metrics.net_pnl / test_metrics.max_drawdown if test_metrics.max_drawdown else "—"))
+
+            if oos_report.equity_curve:
+                st.subheader("Out-of-Sample Equity Curve")
+                st.line_chart({
+                    "OOS Cumulative P&L": [
+                        float(point.cumulative_pnl) for point in oos_report.equity_curve
+                    ]
+                })
+                st.line_chart({
+                    "OOS Drawdown": [
+                        float(point.drawdown) for point in oos_report.equity_curve
+                    ]
+                })
             if report.equity_curve:
                 st.subheader("Equity Curve")
                 st.line_chart({
