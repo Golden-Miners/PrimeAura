@@ -207,3 +207,41 @@ def cost_stress_results(
         trades = run_replay(signals, costs)
         results.append((name, calculate_metrics(trades)))
     return tuple(results)
+
+
+def walk_forward_cost_stress(
+    bars_by_tf: dict[str, list[OHLCVBar]],
+    windows: tuple[tuple[datetime, datetime, datetime, datetime], ...],
+    instrument: str,
+    scenarios: tuple[tuple[str, ExecutionCosts], ...],
+    warmup: int = 250,
+) -> tuple[dict[str, dict[str, int | str]], ...]:
+    """Measure execution-cost resilience independently inside each OOS window."""
+    rows = []
+    for window_index, (train_start, train_end, test_start, test_end) in enumerate(windows, start=1):
+        capped = {
+            timeframe: [bar for bar in sorted(bars, key=lambda x: x.timestamp) if bar.timestamp <= test_end]
+            for timeframe, bars in bars_by_tf.items()
+        }
+        paired, _ = run_historical(instrument, capped, warmup=warmup)
+        oos = []
+        for signal, trade in paired:
+            if signal.timestamp is None:
+                continue
+            exit_time = signal.timestamp + timedelta(minutes=5 * trade.bars_held)
+            if test_start <= signal.timestamp < test_end and exit_time <= test_end:
+                future = [bar for bar in capped["M5"] if bar.timestamp >= signal.timestamp]
+                oos.append((signal, future))
+
+        for scenario_name, costs in scenarios:
+            metrics = calculate_metrics(list(run_replay(oos, costs)))
+            rows.append({
+                "window": window_index,
+                "scenario": scenario_name,
+                "trades": metrics.trade_count,
+                "net_pnl": str(metrics.net_pnl),
+                "win_rate": str(metrics.win_rate),
+                "profit_factor": str(metrics.profit_factor),
+                "max_drawdown": str(metrics.max_drawdown),
+            })
+    return tuple(rows)
