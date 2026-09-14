@@ -164,6 +164,21 @@ if st.button("Run historical backtest", type="primary"):
                 f"In-sample: {train_start.date()} -> {train_end.date()} | "
                 f"Out-of-sample: {test_start.date()} -> {test_end.date()}"
             )
+            from src.primeaura.backtest.runner import split_trade_results_by_time
+            from src.primeaura.backtest.metrics import calculate_metrics
+            train_trades, test_trades = split_trade_results_by_time(trades, test_start)
+            train_metrics = calculate_metrics([r for _, r in train_trades])
+            test_metrics = calculate_metrics([r for _, r in test_trades])
+            s1, s2, s3, s4 = st.columns(4)
+            s1.metric("IS Trades", train_metrics.trade_count)
+            s2.metric("IS Win Rate", f"{train_metrics.win_rate:.2f}%")
+            s3.metric("OOS Trades", test_metrics.trade_count)
+            s4.metric("OOS Win Rate", f"{test_metrics.win_rate:.2f}%")
+            o1, o2, o3, o4 = st.columns(4)
+            o1.metric("IS Net P&L", str(train_metrics.net_pnl))
+            o2.metric("IS Profit Factor", str(train_metrics.profit_factor))
+            o3.metric("OOS Net P&L", str(test_metrics.net_pnl))
+            o4.metric("OOS Profit Factor", str(test_metrics.profit_factor))
             if report.equity_curve:
                 st.subheader("Equity Curve")
                 st.line_chart({
