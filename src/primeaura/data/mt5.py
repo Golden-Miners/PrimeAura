@@ -102,6 +102,8 @@ class MT5DataSource:
         # that capability is unavailable; the integrity layer can still
         # validate OHLC, duplicates, and same-day gaps.
         session_api = getattr(mt5, "symbol_info_session_trade", None)
+        if not callable(session_api):
+            session_api = None
         sessions = {}
 
         if session_api is not None:
