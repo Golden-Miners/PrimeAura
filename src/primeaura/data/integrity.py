@@ -1,5 +1,4 @@
 from collections import Counter
-from datetime import timedelta
 from datetime import datetime, timedelta
 
 from .models import OHLCVBar
@@ -22,6 +21,19 @@ def _session_contains(ts: datetime, sessions: dict | None) -> bool:
         if start > end and (seconds >= start or seconds <= end):
             return True
     return False
+
+
+def _gap_is_session_closed(start: datetime, end: datetime, expected: timedelta, sessions: dict) -> bool:
+    """Return True only when sampled points across a gap are outside trade sessions."""
+    cursor = start + expected
+    checked = 0
+    while cursor < end:
+        if _session_contains(cursor, sessions):
+            return False
+        cursor += expected
+        checked += 1
+    # A gap with no sampled open-session candle is treated as a session boundary.
+    return checked > 0
 
 
 def validate_bars(
@@ -60,12 +72,20 @@ def validate_bars(
         for a, b in zip(ordered, ordered[1:]):
             delta = b.timestamp - a.timestamp
             if delta > expected:
-                if a.timestamp.date() == b.timestamp.date():
+                if sessions and _gap_is_session_closed(a.timestamp, b.timestamp, expected, sessions):
+                    warnings.append(
+                        f"session_boundary_gap:{a.timestamp.isoformat()}->{b.timestamp.isoformat()}"
+                    )
+                elif a.timestamp.date() == b.timestamp.date():
                     issues.append(f"time_gap:{a.timestamp.isoformat()}->{b.timestamp.isoformat()}")
                 elif sessions:
-                    warnings.append(f"session_boundary_gap:{a.timestamp.isoformat()}->{b.timestamp.isoformat()}")
+                    warnings.append(
+                        f"session_boundary_gap_unverified:{a.timestamp.isoformat()}->{b.timestamp.isoformat()}"
+                    )
                 else:
-                    warnings.append(f"cross_day_gap_unverified:{a.timestamp.isoformat()}->{b.timestamp.isoformat()}")
+                    warnings.append(
+                        f"cross_day_gap_unverified:{a.timestamp.isoformat()}->{b.timestamp.isoformat()}"
+                    )
 
     status = "FAIL" if issues else ("WARNING" if warnings else "PASS")
     return {
