@@ -18,6 +18,9 @@ class DirectionDiagnostic:
     rr_tp1: Decimal | None = None
     tp2: Decimal | None = None
     rr_tp2: Decimal | None = None
+    bar_counts: dict[str, int] | None = None
+    latest_bars: dict[str, str] | None = None
+    evidence_counts: dict[str, int] | None = None
 
 def diagnose_from_bars(bars_by_tf: dict[str, list]) -> tuple[DirectionDiagnostic, ...]:
     """Explain confluence and the final signal/RR rejection reason."""
@@ -28,6 +31,20 @@ def diagnose_from_bars(bars_by_tf: dict[str, list]) -> tuple[DirectionDiagnostic
     active_obs = active_order_blocks(m15, obs)
     active_fvgs_list = active_fvgs(m15, fvgs)
     entry = Decimal(str(bars_by_tf["M5"][-1].close))
+    bar_counts = {tf: len(items) for tf, items in bars_by_tf.items()}
+    latest_bars = {
+        tf: items[-1].timestamp.isoformat() if items else "—"
+        for tf, items in bars_by_tf.items()
+    }
+    evidence_counts = {
+        "BOS": len(bos),
+        "Order Blocks": len(active_obs),
+        "Active Order Blocks": sum(1 for x in active_obs if x.active),
+        "FVGs": len(fvgs),
+        "Active FVGs": sum(1 for x in active_fvgs_list if x.active),
+        "Liquidity Pools": len(pools),
+        "Liquidity Sweeps": len(sweeps),
+    }
 
     results = []
     for direction in ("BUY", "SELL"):
@@ -37,7 +54,9 @@ def diagnose_from_bars(bars_by_tf: dict[str, list]) -> tuple[DirectionDiagnostic
         if evidence.missing:
             results.append(DirectionDiagnostic(
                 direction, evidence.reasons, evidence.missing,
-                "BLOCKED: confluence requirements incomplete", entry
+                "BLOCKED: confluence requirements incomplete", entry,
+                None, None, None, None, None, None,
+                bar_counts, latest_bars, evidence_counts
             ))
             continue
 
@@ -74,6 +93,7 @@ def diagnose_from_bars(bars_by_tf: dict[str, list]) -> tuple[DirectionDiagnostic
                 )
 
         results.append(DirectionDiagnostic(
-            direction, evidence.reasons, (), gate, entry, sl, tp1, rr1, tp2, rr2
+            direction, evidence.reasons, (), gate, entry, sl, tp1, rr1, tp2, rr2,
+            bar_counts, latest_bars, evidence_counts
         ))
     return tuple(results)
