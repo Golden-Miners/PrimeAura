@@ -168,7 +168,18 @@ if st.button("Run historical backtest", type="primary"):
                     # MT5 session metadata lets integrity validation distinguish
                     # legitimate broker/session closures from missing candles.
                     session_info = service.source.session_info(bt_symbol)
-                    sessions_by_tf = {tf: session_info["sessions"] for tf in historical}
+                    if session_info.get("session_metadata_available", False):
+                        sessions_by_tf = {
+                            tf: session_info["sessions"] for tf in historical
+                        }
+                    else:
+                        sessions_by_tf = {}
+                        st.warning(
+                            "MT5 broker session metadata is unavailable in the installed "
+                            "Python package. Cross-day/session gaps will be treated as "
+                            "unverified warnings; genuine same-day integrity violations "
+                            "will still block the backtest."
+                        )
                     integrity = validate_multitimeframe(historical, sessions_by_tf)
                     st.subheader("Historical data integrity")
                     if integrity["valid"]:
