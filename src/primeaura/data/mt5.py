@@ -95,6 +95,17 @@ class MT5DataSource:
         if info is None:
             raise RuntimeError(f"MT5 symbol_info failed for {instrument}: {mt5.last_error()}")
 
+        # Session times are broker-server seconds from midnight. Normalize
+        # them to the same UTC clock used by PrimeAura's OHLCV bars.
+        probe = mt5.copy_rates_from_pos(
+            instrument, getattr(mt5, TIMEFRAME_MAP["M5"]), 1, 1
+        )
+        offset = _server_offset(probe)
+        offset_seconds = int(offset.total_seconds())
+
+        def normalize_second(value: int) -> int:
+            return (int(value) - offset_seconds) % 86400
+
         sessions = {}
         for day in range(7):
             day_sessions = []
@@ -104,8 +115,8 @@ class MT5DataSource:
                 if session is None:
                     break
                 day_sessions.append({
-                    "from": session[0],
-                    "to": session[1],
+                    "from": normalize_second(session[0]),
+                    "to": normalize_second(session[1]),
                 })
                 index += 1
             sessions[day] = day_sessions
@@ -187,6 +198,6 @@ class MT5DataSource:
                 f"MT5 returned no historical rates for {instrument} {timeframe}: "
                 f"{mt5.last_error()}"
             )
-        # copy_rates_range is bounded by the requested UTC interval; PrimeAura
-        # also requests only closed bars at scan time. Keep the adapter read-only.
-        return self._snapshot(instrument, timeframe, rates)
+        # MT5 broker feeds may expose broker-local epochs. Normalize them to
+        # PrimeAura UTC before integrity checks and chronological replay.
+        return self._snapshot(instrument, timeframe, rates, _server_offset(rates))
