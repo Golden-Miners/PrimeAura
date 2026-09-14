@@ -1,6 +1,7 @@
 from collections import Counter
 from datetime import timedelta
 from decimal import Decimal
+from datetime import timezone
 
 from .models import OHLCVBar
 
@@ -22,6 +23,10 @@ def validate_bars(bars: list[OHLCVBar]) -> dict:
         issues.append("timestamps_not_strictly_increasing")
 
     for bar in ordered:
+        if bar.timestamp.tzinfo is None or bar.timestamp.utcoffset() is None:
+            issues.append(f"naive_timestamp:{bar.timestamp.isoformat()}")
+        if bar.volume is not None and bar.volume < 0:
+            issues.append(f"negative_volume:{bar.timestamp.isoformat()}")
         if not (bar.low <= bar.open <= bar.high and bar.low <= bar.close <= bar.high):
             issues.append(f"invalid_ohlc:{bar.timestamp.isoformat()}")
         if bar.low > bar.high:
