@@ -79,3 +79,17 @@ def split_train_test(start: datetime, end: datetime, train_ratio: float = 0.7) -
     duration = end - start
     split = start + duration * train_ratio
     return (start, split), (split, end)
+
+def split_trade_results_by_time(
+    paired: tuple[tuple[Signal, TradeResult], ...],
+    split_time: datetime,
+) -> tuple[tuple[Signal, TradeResult], tuple[Signal, TradeResult]]:
+    """Partition completed trades by signal decision time without overlap."""
+    train = []
+    test = []
+    for signal, result in paired:
+        signal_time = getattr(signal, "timestamp", None)
+        if signal_time is None:
+            continue
+        (train if signal_time < split_time else test).append((signal, result))
+    return tuple(train), tuple(test)
