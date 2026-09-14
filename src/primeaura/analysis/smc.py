@@ -45,12 +45,46 @@ def find_equal_levels(bars: list[OHLCVBar], swings: list[SwingPoint], tolerance_
 
 
 def detect_bos(bars: list[OHLCVBar], swings: list[SwingPoint]) -> list[StructureBreak]:
-    """BOS requires a candle body close beyond the latest confirmed swing."""
-    out=[]
-    for s in swings:
-        for i in range(s.index+1,len(bars)):
-            if s.kind=="HIGH" and bars[i].close>s.price: out.append(StructureBreak("BULLISH_BOS",i,s.price,s.index)); break
-            if s.kind=="LOW" and bars[i].close<s.price: out.append(StructureBreak("BEARISH_BOS",i,s.price,s.index)); break
+    """Detect BOS against the latest confirmed swing level, once per level.
+
+    A swing is confirmed only after its right-hand window has completed. With
+    the locked 2-right-bar swing detector, swing index + 2 must be available
+    before that swing can be used as a BOS reference.
+    """
+    out = []
+    if not bars or not swings:
+        return out
+
+    by_index = sorted(swings, key=lambda x: x.index)
+    latest_high = None
+    latest_low = None
+    broken_high_index = None
+    broken_low_index = None
+
+    for i, bar in enumerate(bars):
+        for swing in by_index:
+            if swing.index + 2 <= i and swing.index < i:
+                if swing.kind == "HIGH" and (latest_high is None or swing.index > latest_high.index):
+                    latest_high = swing
+                    broken_high_index = None
+                elif swing.kind == "LOW" and (latest_low is None or swing.index > latest_low.index):
+                    latest_low = swing
+                    broken_low_index = None
+
+        if latest_high is not None and bar.close > latest_high.price:
+            if broken_high_index != latest_high.index:
+                out.append(
+                    StructureBreak("BULLISH_BOS", i, latest_high.price, latest_high.index)
+                )
+                broken_high_index = latest_high.index
+
+        if latest_low is not None and bar.close < latest_low.price:
+            if broken_low_index != latest_low.index:
+                out.append(
+                    StructureBreak("BEARISH_BOS", i, latest_low.price, latest_low.index)
+                )
+                broken_low_index = latest_low.index
+
     return out
 
 
