@@ -157,5 +157,6 @@ class MT5DataSource:
                 f"MT5 returned no historical rates for {instrument} {timeframe}: "
                 f"{mt5.last_error()}"
             )
-        # Exclude any candle that is still forming at the end boundary.
+        # copy_rates_range is bounded by the requested UTC interval; PrimeAura
+        # also requests only closed bars at scan time. Keep the adapter read-only.
         return self._snapshot(instrument, timeframe, rates)
