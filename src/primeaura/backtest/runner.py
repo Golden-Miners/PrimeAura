@@ -55,8 +55,12 @@ def run_historical(
         if not signals:
             continue
 
+        # Only candles beginning at/after the decision timestamp are eligible
+        # for outcome resolution. The decision candle itself is already closed.
         future = _future_after(m5, decision_time)
         for signal in signals:
+            if signal.timestamp != decision_time:
+                continue
             result = resolve_signal_on_bars(signal, future)
             if result is not None:
                 paired.append((signal, result))
