@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime
 from decimal import Decimal
 from ..analysis.activation import active_fvgs, active_order_blocks, detect_liquidity_sweeps
 from ..signals.mtf_confluence import evaluate_locked_confluence
@@ -14,14 +14,13 @@ def generate_from_bars(instrument: str, bars_by_tf: dict[str, list]):
     active_fvgs_list = active_fvgs(m15, fvgs)
     candidates = []
     for direction in ("BUY", "SELL"):
-        evidence = evaluate_locked_confluence(context, direction, pools, bos, active_obs, active_fvgs_list)
+        evidence = evaluate_locked_confluence(context, direction, pools, bos, sweeps, active_obs, active_fvgs_list)
         if evidence.missing:
             continue
         entry = bars_by_tf["M5"][-1].close
         signal = generate_locked_signal(
             instrument, context, direction, Decimal(str(entry)), sweeps, bos,
-            active_obs, active_fvgs_list, pools,
-            timestamp=bars_by_tf["M5"][-1].timestamp,
+            active_obs, active_fvgs_list, pools, timestamp=datetime.now().astimezone(),
         )
         if signal:
             candidates.append(signal)
