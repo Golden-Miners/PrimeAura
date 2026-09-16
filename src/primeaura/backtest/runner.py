@@ -1,17 +1,14 @@
 from datetime import datetime, timedelta
 from ..data.models import OHLCVBar
-from ..signals.models import Signal
 from ..scanner.pipeline import generate_from_bars
 from .metrics import calculate_metrics
-from .models import BacktestMetrics, TradeResult
 from .replay import resolve_signal_on_bars, run_replay
 from .engine import ExecutionCosts
 
 _TIMEFRAME_MINUTES={"M5":5,"M15":15,"H1":60}
 
 def _closed_as_of(bars,decision_time,timeframe):
-    duration=timedelta(minutes=_TIMEFRAME_MINUTES[timeframe])
-    return [bar for bar in bars if bar.timestamp+duration<=decision_time]
+    return [bar for bar in bars if bar.timestamp+timedelta(minutes=_TIMEFRAME_MINUTES[timeframe])<=decision_time]
 
 def _future_after(bars,decision_time):
     return [bar for bar in bars if bar.timestamp>=decision_time]
@@ -29,7 +26,6 @@ def run_historical(instrument,bars_by_tf,warmup=250,max_signals=None):
         if not signals: continue
         future=_future_after(m5,decision_time)
         for signal in signals:
-            if signal.timestamp!=decision_time: continue
             result=resolve_signal_on_bars(signal,future)
             if result is not None:
                 paired.append((signal,result)); last_exit_time=decision_time+timedelta(minutes=5*result.bars_held); last_decision_time=decision_time
@@ -79,9 +75,9 @@ def walk_forward_cost_stress(bars_by_tf,windows,instrument,scenarios,warmup=250)
     for window_index,(_,_,test_start,test_end) in enumerate(windows,start=1):
         capped={tf:[bar for bar in sorted(bars,key=lambda x:x.timestamp) if bar.timestamp<=test_end] for tf,bars in bars_by_tf.items()}
         paired,_=run_historical(instrument,capped,warmup=warmup); oos=[]
-        for signal,_ in paired:
+        for signal,trade in paired:
             if signal.timestamp is None: continue
-            exit_time=signal.timestamp+timedelta(minutes=5)
+            exit_time=signal.timestamp+timedelta(minutes=5*trade.bars_held)
             if test_start<=signal.timestamp<test_end and exit_time<=test_end: oos.append((signal,[bar for bar in capped["M5"] if bar.timestamp>=signal.timestamp]))
         for name,costs in scenarios:
             m=calculate_metrics(list(run_replay(oos,costs))); rows.append({"window":window_index,"scenario":name,"trades":m.trade_count,"net_pnl":str(m.net_pnl),"win_rate":str(m.win_rate),"profit_factor":str(m.profit_factor),"max_drawdown":str(m.max_drawdown)})
