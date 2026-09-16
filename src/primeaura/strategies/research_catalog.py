@@ -6,7 +6,9 @@ def research_strategy_catalog()->tuple[StrategyDefinition,...]:
     common=dict(instruments=("XAUUSD","XAGUSD"),timeframes=("H1","M15","M5"),minimum_rr=Decimal("2.0"),status="RESEARCH_ONLY")
     return tuple(StrategyDefinition(strategy_id=i,name=n,version="0.1.0",description=d,**common) for i,n,d in (
         ("trend-pullback","Trend Pullback","Higher-timeframe trend with pullback and continuation confirmation."),
+        ("liquidity-sweep-ifvg","Liquidity Sweep + IFVG","Liquidity sweep followed by inverse fair-value-gap style confirmation."),
         ("breakout-retest","Breakout Retest","Confirmed level breakout followed by retest and continuation."),
+        ("ema-crossover","EMA Crossover","EMA9/EMA21 crossover with ATR risk model."),
         ("momentum","Momentum Continuation","Volatility/momentum continuation with regime filters."),
         ("mean-reversion","Mean Reversion","Extreme-to-mean setup with regime filters."),
         ("volatility-breakout","Volatility Breakout","Volatility expansion breakout with independent validation."),
